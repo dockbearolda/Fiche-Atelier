@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Atelier - Production</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: #000; 
+            color: #fff; 
+            -webkit-font-smoothing: antialiased;
+        }
+        .order-card { 
+            background: #1c1c1e; 
+            border-radius: 24px; 
+            border: 1px solid #2c2c2e; 
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .order-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .btn-ready { 
+            background: #34C759; 
+            color: #fff; 
+            border-radius: 14px; 
+            padding: 16px; 
+            font-weight: 700; 
+            width: 100%; 
+            transition: 0.2s;
+        }
+        .btn-ready:active { transform: scale(0.96); opacity: 0.8; }
+        
+        .badge { padding: 5px 12px; border-radius: 10px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+        .badge-paid { background: rgba(52, 199, 89, 0.15); color: #32D74B; }
+        .badge-unpaid { background: rgba(255, 69, 58, 0.15); color: #FF453A; }
+        
+        /* Animation de chargement */
+        .loader { width: 20px; height: 20px; border: 3px solid #333; border-top: 3px solid #007AFF; border-radius: 50%; animation: spin 1s linear infinite; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-6 md:p-10">
+
+    <header class="flex justify-between items-center mb-12">
+        <div>
+            <h1 class="text-4xl font-black tracking-tight">Atelier</h1>
+            <p class="text-zinc-500 font-medium">Production textile en temps réel</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="loader" class="loader"></div>
+            <button onclick="loadOrders()" class="bg-zinc-800 hover:bg-zinc-700 p-3 rounded-full transition-colors">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <div id="orderGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        </div>
+
+    <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-zinc-600">
+        <svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24" class="mb-4"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+        <p class="text-xl font-medium">Aucune commande en cours</p>
+    </div>
+
+    <script>
+        // REMPLACE PAR TON URL GOOGLE APPS SCRIPT
+        const API_URL = "TON_URL_APPS_SCRIPT_ICI"; 
+
+        async function loadOrders() {
+            const loader = document.getElementById('loader');
+            loader.style.display = 'block';
+            
+            try {
+                const res = await fetch(API_URL);
+                const data = await res.json();
+                const grid = document.getElementById('orderGrid');
+                const empty = document.getElementById('emptyState');
+                
+                grid.innerHTML = '';
+                
+                // On filtre pour ne pas afficher les lignes vides
+                const activeOrders = data.filter(o => o.orderNo && o.orderNo !== "");
+
+                if (activeOrders.length === 0) {
+                    empty.classList.remove('hidden');
+                    empty.classList.add('flex');
+                } else {
+                    empty.classList.add('hidden');
+                    empty.classList.remove('flex');
+                }
+
+                activeOrders.reverse().forEach(order => {
+                    const card = document.createElement('div');
+                    card.className = "order-card flex flex-col";
+                    card.innerHTML = `
+                        <div class="p-6 flex justify-between items-start">
+                            <div>
+                                <span class="text-[10px] text-zinc-500 font-black uppercase tracking-widest">${order.orderNo}</span>
+                                <h2 class="text-xl font-bold mt-1 text-white">${order.client}</h2>
+                            </div>
+                            <span class="badge ${order.paid === 'OUI' ? 'badge-paid' : 'badge-unpaid'}">
+                                ${order.paid === 'OUI' ? 'PAYÉ' : 'À RÉGLER'}
+                            </span>
+                        </div>
+
+                        <div class="px-4">
+                            <div class="bg-white rounded-xl overflow-hidden shadow-inner group cursor-pointer" onclick="window.open('${order.ficheUrl}', '_blank')">
+                                <img src="${order.ficheUrl}" class="w-full h-auto transform transition-transform group-hover:scale-105" alt="Fiche Technique">
+                            </div>
+                        </div>
+
+                        <div class="p-6 space-y-4 mt-auto">
+                            <div class="bg-zinc-900/50 rounded-xl p-4 text-sm border border-zinc-800/50">
+                                <p class="text-zinc-400"><strong class="text-zinc-200">Config :</strong> ${order.details}</p>
+                                <p class="text-zinc-400 mt-2 italic"><strong class="text-zinc-200">Notes :</strong> ${order.note || 'Aucune'}</p>
+                            </div>
+                            
+                            <button onclick="terminerCommande('${order.orderNo}')" id="btn-${order.orderNo}" class="btn-ready">
+                                <div class="flex items-center justify-center gap-2">
+                                    <span>TERMINÉ</span>
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"></path></svg>
+                                </div>
+                            </button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (err) {
+                console.error("Erreur de chargement:", err);
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        async function terminerCommande(id) {
+            const btn = document.getElementById('btn-' + id);
+            const originalContent = btn.innerHTML;
+            
+            if(!confirm("Confirmer la fin de production ? Cela enverra un email au client et archivera la fiche.")) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="animate-pulse">ARCHIVAGE...</span>';
+
+            try {
+                // Appel de l'action archive sur Google Apps Script
+                const response = await fetch(`${API_URL}?action=archive&orderNo=${id}`);
+                const result = await response.text();
+                
+                if(result === "Archivé") {
+                    // Animation de sortie de la carte
+                    btn.closest('.order-card').style.opacity = '0';
+                    btn.closest('.order-card').style.transform = 'scale(0.9)';
+                    setTimeout(loadOrders, 500);
+                }
+            } catch (err) {
+                alert("Erreur lors de l'archivage. Vérifiez votre connexion.");
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+            }
+        }
+
+        // Chargement initial
+        loadOrders();
+        
+        // Rafraîchissement automatique toutes les 2 minutes pour économiser la batterie
+        setInterval(loadOrders, 120000);
+    </script>
+</body>
+</html>
