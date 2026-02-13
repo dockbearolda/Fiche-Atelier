@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atelier Production</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #000; color: #fff; }
+        .order-card { background: #1c1c1e; border-radius: 20px; border: 1px solid #2c2c2e; transition: all 0.3s; }
+        .btn-ready { background: #34C759; color: #fff; border-radius: 10px; padding: 10px 20px; font-weight: 600; }
+        .btn-ready:active { transform: scale(0.95); opacity: 0.8; }
+        .badge-paid { background: rgba(52, 199, 89, 0.2); color: #34C759; padding: 4px 8px; border-radius: 6px; font-size: 12px; }
+        .badge-unpaid { background: rgba(255, 59, 48, 0.2); color: #FF3B30; padding: 4px 8px; border-radius: 6px; font-size: 12px; }
+    </style>
+</head>
+<body class="p-6">
+
+    <header class="flex justify-between items-center mb-10">
+        <div>
+            <h1 class="text-4xl font-bold tracking-tight">Atelier</h1>
+            <p class="text-gray-500 font-medium">Commandes en attente de production</p>
+        </div>
+        <div id="status" class="text-xs text-gray-500 bg-zinc-900 px-4 py-2 rounded-full">Actualisation auto...</div>
+    </header>
+
+    <div id="orderGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        </div>
+
+    <script>
+        const API_URL = "TON_URL_APPS_SCRIPT_ICI";
+
+        async function loadOrders() {
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                renderOrders(data);
+                document.getElementById('status').innerText = "Dernière mise à jour : " + new Date().toLocaleTimeString();
+            } catch (e) {
+                console.error("Erreur de chargement");
+            }
+        }
+
+        function renderOrders(orders) {
+            const grid = document.getElementById('orderGrid');
+            grid.innerHTML = '';
+            
+            orders.reverse().forEach(order => {
+                if(!order.ficheUrl) return; // Ignore les lignes vides
+
+                const card = document.createElement('div');
+                card.className = "order-card p-5 flex flex-col gap-4";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">${order.orderNo}</span>
+                            <h2 class="text-xl font-bold">${order.client}</h2>
+                        </div>
+                        <span class="${order.paid === 'OUI' ? 'badge-paid' : 'badge-unpaid'}">
+                            ${order.paid === 'OUI' ? 'PAYÉ' : 'À RÉGLER'}
+                        </span>
+                    </div>
+
+                    <div class="rounded-lg overflow-hidden border border-zinc-800 bg-white">
+                        <img src="${order.ficheUrl}" class="w-full h-auto cursor-pointer" onclick="window.open('${order.ficheUrl}')">
+                    </div>
+
+                    <div class="space-y-2 text-sm text-gray-400">
+                        <p><strong>Config :</strong> ${order.details}</p>
+                    </div>
+
+                    <button onclick="prevenirClient('${order.client}', '${order.orderNo}')" class="btn-ready mt-auto">
+                        PRÉVENIR CLIENT
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function prevenirClient(name, orderNo) {
+            // Ici on simule l'envoi. Dans une version réelle, on appellerait une fonction du script Google
+            alert(`Email envoyé à ${name} : "Votre commande ${orderNo} est prête !"`);
+            // Note : Pour l'archivage, on pourrait déplacer la ligne dans un autre onglet du Sheets
+        }
+
+        // Chargement initial et rafraîchissement toutes les 30 secondes
+        loadOrders();
+        setInterval(loadOrders, 30000);
+    </script>
+</body>
+</html>
